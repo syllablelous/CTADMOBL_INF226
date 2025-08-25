@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:rapi_advmobprog/widgets/search_bar_widget.dart';
 
 import '../models/article_model.dart';
 import '../services/article_service.dart';
 import '../widgets/custom_text.dart';
+import '../screens/article_details_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
   const ArticleScreen({super.key});
@@ -14,6 +16,8 @@ class ArticleScreen extends StatefulWidget {
 
 class _ArticleScreenState extends State<ArticleScreen> {
   late Future<List<Article>> _futureArticles;
+  final TextEditingController _searchController = TextEditingController();
+  String query = "";
 
   @override
   void initState() {
@@ -32,6 +36,15 @@ class _ArticleScreenState extends State<ArticleScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SearchBarWidget(
+            hintText: 'Search for...',
+            textController: _searchController,
+            onChanged: (value) {
+              setState(() {
+                query = value;
+              });
+            },
+          ),
           Expanded(
             child: FutureBuilder<List<Article>>(
               future: _futureArticles,
@@ -94,8 +107,15 @@ class _ArticleScreenState extends State<ArticleScreen> {
                       child: InkWell(
                         borderRadius: BorderRadius.circular(12.r),
                         onTap: () {
-                          // TODO: Navigate to details
-                          debugPrint('Index $index tapped');
+                          // Navigate to article details screen
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ArticleDetailsScreen(
+                                article: article,
+                              ),
+                            ),
+                          );
                         },
                         child: Padding(
                           padding: EdgeInsets.symmetric(

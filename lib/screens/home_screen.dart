@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:provider/provider.dart';
-import '../providers/theme_provider.dart';
 import 'article_screen.dart';
+import 'setttings_screen.dart';
 
 import '../widgets/custom_text.dart';
 
@@ -20,8 +19,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final themeModel = context.watch<ThemeProvider>();
-
     return Scaffold(
       appBar: AppBar(
         elevation: 2,
@@ -31,9 +28,14 @@ class _HomeScreenState extends State<HomeScreen> {
           fontWeight: FontWeight.w600,
         ),
         actions: [
-          Switch(
-            value: themeModel.isDark,
-            onChanged: (_) => themeModel.toggleTheme(),
+          IconButton(
+            icon: Icon(Icons.settings, size: 24.sp),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SettingsScreen()),
+              );
+            },
           ),
         ],
       ),

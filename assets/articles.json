@@ -1,0 +1,62 @@
+[
+  {
+    "userId": 1,
+    "id": 1,
+    "title": "Sample Article 1: Standard Lorem Ipsum Since the 15000s",
+    "body": "Content for sample article 1. Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+  },
+  {
+    "userId": 1,
+    "id": 2,
+    "title": "de Finibus Bonorum et Malorum: Section 1.10.32",
+    "body": "Sed ut perspiciatis unde omnis iste natus error sit voluptatem accusantium doloremque laudantium, totam rem aperiam, eaque ipsa quae ab illo inventore veritatis et quasi architecto beatae vitae dicta sunt explicabo."
+  },
+  {
+    "userId": 2,
+    "id": 3,
+    "title": "H. Rackham 1914 Translation",
+    "body": "But I must explain to you how all this mistaken idea of denouncing pleasure and praising pain was born and I will give you a complete account of the system, and expound the actual teachings of the great explorer of the truth, the master-builder of human happiness."
+  },
+  {
+    "userId": 2,
+    "id": 4,
+    "title": "Sample Article No. 4: Advanced Mobile Programming with Flutter",
+    "body": "This subject will be focusing on integrating the backend with the Flutter mobile frontend, previously covered in the subject of Mobile Programming."
+  },
+  {
+    "userId": 3,
+    "id": 5,
+    "title": "Working with APIs in Flutter",
+    "body": "Most real-world Flutter applications need to communicate with backend services. This guide covers HTTP requests using http package, JSON parsing, error handling, loading states, and best practices for API integration. Learn how to structure your API calls and handle different response scenarios."
+  },
+  {
+    "userId": 3,
+    "id": 6,
+    "title": "Flutter Testing Strategies",
+    "body": "Testing is crucial for maintaining code quality and preventing regressions. This article covers unit testing, widget testing, and integration testing in Flutter. Learn how to write effective tests, mock dependencies, test user interactions, and set up continuous integration for your Flutter projects."
+  },
+  {
+    "userId": 4,
+    "id": 7,
+    "title": "Performance Optimization in Flutter",
+    "body": "Performance is key to providing a smooth user experience. This guide covers Flutter performance optimization techniques including widget rebuilding optimization, image optimization, memory management, and profiling tools. Learn how to identify performance bottlenecks and implement solutions to improve your app's performance."
+  },
+  {
+    "userId": 4,
+    "id": 8,
+    "title": "Flutter App Deployment and Publishing",
+    "body": "Once your Flutter app is ready, you need to deploy it to app stores. This article covers the complete deployment process for both Android and iOS platforms, including app signing, build configuration, store listing requirements, and submission procedures. Learn how to prepare your app for production release."
+  },
+  {
+    "userId": 5,
+    "id": 9,
+    "title": "Advanced Flutter Widgets and Customization",
+    "body": "Flutter provides a rich set of widgets, but sometimes you need custom solutions. This article explores advanced widget concepts including custom painters, custom render objects, gesture handling, and animation controllers. Learn how to create unique user experiences and extend Flutter's widget system."
+  },
+  {
+    "userId": 5,
+    "id": 10,
+    "title": "Flutter for Web and Desktop",
+    "body": "Flutter's multi-platform capabilities extend beyond mobile. This guide covers Flutter web and desktop development, including platform-specific considerations, responsive design for web, desktop window management, and deployment strategies. Learn how to leverage Flutter's universal nature to reach more users."
+  }
+]
