@@ -5,6 +5,7 @@ import 'package:rapi_advmobprog/widgets/search_bar_widget.dart';
 import '../models/article_model.dart';
 import '../services/article_service.dart';
 import '../widgets/custom_text.dart';
+import '../widgets/article_dialog.dart';
 import 'details_screen.dart';
 
 class ArticleScreen extends StatefulWidget {
@@ -15,158 +16,103 @@ class ArticleScreen extends StatefulWidget {
 }
 
 class _ArticleScreenState extends State<ArticleScreen> {
-  late Future<List<Article>> _futureArticles;
+  Future<List<Article>>? _futureArticles;
   final TextEditingController _searchController = TextEditingController();
   String query = "";
+  List<Article> _allArticles = [];
+  List<Article> _filteredArticles = [];
+  bool _isInitialized = false;
+  bool _isRefreshing = false;
+  bool _isSearching = false;
 
   @override
   void initState() {
     super.initState();
-    _futureArticles = _getAllArticles();
+    _loadArticles();
+  }
+
+  void _loadArticles() {
+    if (!_isInitialized) {
+      _futureArticles = _getAllArticles();
+      _isInitialized = true;
+    }
+  }
+
+  Future<void> _refreshArticles() async {
+    setState(() {
+      _isRefreshing = true;
+    });
+
+    try {
+      _futureArticles = _getAllArticles();
+      await _futureArticles;
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isRefreshing = false;
+        });
+      }
+    }
   }
 
   Future<List<Article>> _getAllArticles() async {
-    final response = await ArticleService().getAllArticles();
-    return (response).map((e) => Article.fromJson(e)).toList();
+    try {
+      final response = await ArticleService().getAllArticles();
+
+      // Convert List<dynamic> to List<Article>
+      final List<Article> articles = response.map<Article>((item) {
+        return Article.fromJson(item as Map<String, dynamic>);
+      }).toList();
+
+      setState(() {
+        _allArticles = articles;
+        _filterArticles();
+      });
+
+      return articles;
+    } catch (e) {
+      return <Article>[];
+    }
+  }
+
+  void _filterArticles() {
+    if (query.isEmpty) {
+      _filteredArticles = List.from(_allArticles);
+      _isSearching = false;
+    } else {
+      setState(() {
+        _isSearching = true;
+      });
+
+      // Simulate a small delay for search feedback (optional)
+      Future.delayed(Duration(milliseconds: 100), () {
+        if (mounted) {
+          setState(() {
+            _filteredArticles = _allArticles.where((article) {
+              return article.title.toLowerCase().contains(
+                    query.toLowerCase(),
+                  ) ||
+                  article.name.toLowerCase().contains(query.toLowerCase()) ||
+                  article.content.any(
+                    (content) =>
+                        content.toLowerCase().contains(query.toLowerCase()),
+                  );
+            }).toList();
+            _isSearching = false;
+          });
+        }
+      });
+    }
   }
 
   Future<void> _openAddArticleDialog() async {
-    final titleController = TextEditingController();
-    final authorController = TextEditingController();
-    final contentController = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    bool isSaving = false;
-    bool isActive = true;
-
-    await showDialog<void>(
+    await ArticleDialogHelper.show(
       context: context,
-      barrierDismissible: !isSaving,
-      builder: (ctx) {
-        return StatefulBuilder(
-          builder: (ctx, setLocalState) {
-            List<String> _toList(String raw) {
-              // Split by newlines or commas, trim, drop empties
-              return raw
-                  .split(RegExp(r'[\n,]'))
-                  .map((s) => s.trim())
-                  .where((s) => s.isNotEmpty)
-                  .toList();
-            }
-
-            Future<void> save() async {
-              if (isSaving) return;
-              if (!formKey.currentState!.validate()) return;
-
-              setLocalState(() => isSaving = true);
-              try {
-                final payload = {
-                  'title': titleController.text.trim(),
-                  'name': authorController.text.trim(),
-                  'content': _toList(contentController.text),
-                  'isActive': isActive,
-                };
-
-                final Map res = await ArticleService().createArticle(payload);
-
-                // Adjust depending on your API's response shape
-                final created = (res['article'] ?? res);
-                final newArticle = Article.fromJson(created);
-
-                setState(() {
-                  _allArticles.insert(0, newArticle);
-                  _filterArticles(); // keeps current query applied
-                });
-
-                if (ctx.mounted) Navigator.of(ctx).pop();
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Article added.')),
-                  );
-                }
-              } catch (e) {
-                setLocalState(() => isSaving = false);
-                if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(SnackBar(content: Text('Failed to add: $e')));
-                }
-              }
-            }
-
-            return AlertDialog(
-              title: const Text('Add Article'),
-              content: Form(
-                key: formKey,
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      TextFormField(
-                        controller: titleController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Title',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                      SizedBox(height: 12.h),
-                      TextFormField(
-                        controller: authorController,
-                        textInputAction: TextInputAction.next,
-                        decoration: const InputDecoration(
-                          labelText: 'Author / Name',
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (v) =>
-                            (v == null || v.trim().isEmpty) ? 'Required' : null,
-                      ),
-                      SizedBox(height: 12.h),
-                      TextFormField(
-                        controller: contentController,
-                        minLines: 3,
-                        maxLines: 6,
-                        decoration: const InputDecoration(
-                          labelText:
-                              'Content (one item per line or comma-separated)',
-                          border: OutlineInputBorder(),
-                          alignLabelWithHint: true,
-                        ),
-                        validator: (v) {
-                          final items = v == null
-                              ? []
-                              : v
-                                    .trim()
-                                    .split(RegExp(r'[\n,]'))
-                                    .where((s) => s.trim().isNotEmpty)
-                                    .toList();
-                          return items.isEmpty
-                              ? 'At lease one content item'
-                              : null;
-                        },
-                      ),
-                      SizedBox(height: 8.h),
-                      SwitchListTile.adaptive(
-                        contentPadding: EdgeInsets.zero,
-                        title: const Text('Active'),
-                        value: isActive,
-                        onChanged: (val) => setLocalState(() => isActive = val),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: isSaving ? null : () => Navigator.of(ctx).pop(),
-                  child: const Text('Cancel'),
-                ),
-                // ElevatedButton.icon(onPressed: onPressed, label: label)
-              ],
-            );
-          },
-        );
+      onArticleAdded: (newArticle) {
+        setState(() {
+          _allArticles.insert(0, newArticle);
+          _filterArticles();
+        });
       },
     );
   }
@@ -187,281 +133,225 @@ class _ArticleScreenState extends State<ArticleScreen> {
         icon: const Icon(Icons.add),
         label: const Text('Add'),
       ),
-      body: SingleChildScrollView(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(height: 20.h),
+      body: Stack(
+        children: [
+          RefreshIndicator(
+            onRefresh: _refreshArticles,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SizedBox(height: 20.h),
 
-            // TODO: earch text field must be here
-            SizedBox(height: 10.h),
-
-            FutureBuilder<void>(
-              future: _loadFuture,
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return SizedBox(
-                    height: ScreenUtil().screenHeight * 0.6,
-                    child: const Center(
-                      child: Padding(
-                        padding: EdgeInsets.all(16.0),
-                        child: CustomText(
-                          text: 'No equipment article to display...',
+                  // Search text field
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
+                    child: Column(
+                      children: [
+                        SearchBarWidget(
+                          hintText: 'Search for...',
+                          textController: _searchController,
+                          onChanged: (value) {
+                            setState(() {
+                              query = value;
+                              _filterArticles();
+                            });
+                          },
                         ),
-                      ),
-                    ),
-                  );
-                }
-
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return SizedBox(
-                    height: ScreenUtil().screenHeight * 0.6,
-                    child: Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          CircularProgressIndicator.adaptive(strokeWidth: 3.sp),
-                          SizedBox(height: 10.h),
-                          const CustomText(
-                            text:
-                                'Waiting for the equipment articles to display...',
+                        if (_isSearching) ...[
+                          SizedBox(height: 8.h),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              SizedBox(
+                                width: 16.w,
+                                height: 16.h,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                ),
+                              ),
+                              SizedBox(width: 8.w),
+                              CustomText(text: 'Searching...', fontSize: 12.sp),
+                            ],
                           ),
                         ],
-                      ),
+                      ],
                     ),
-                  );
-                }
+                  ),
+                  SizedBox(height: 10.h),
 
-                if (_filteredArticles.isEmpty) {
-                  return Padding(
-                    padding: EdgeInsets.only(top: 20.h),
-                    child: const Center(
-                      child: CustomText(
-                        text: 'No equipment article to display...',
-                      ),
-                    ),
-                  );
-                }
+                  FutureBuilder<List<Article>>(
+                    future: _futureArticles,
+                    builder: (context, snapshot) {
+                      if (snapshot.hasError) {
+                        return SizedBox(
+                          height: ScreenUtil().screenHeight * 0.6,
+                          child: const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(16.0),
+                              child: CustomText(
+                                text: 'No equipment article to display...',
+                              ),
+                            ),
+                          ),
+                        );
+                      }
 
-                return ListView.builder(
-                  padding: EdgeInsets.symmetric(horizontal: 20.w),
-                  shrinkWrap: true,
-                  itemCount: _filteredArticles.length,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemBuilder: (context, index) {
-                    final article = _filteredArticles[index];
-                    final preview = article.content.isNotEmpty
-                        ? article.content.first
-                        : '';
-                    return Card(
-                      elevation: 1,
-                      child: InkWell(
-                        onTap: () {
-                          debugPrint('Tapped index $index: ${article.aid}');
-                          // TODO: Navigation to DetailScreen must be here
-                        },
-                        child: Container(
-                          padding: EdgeInsets.symmetric(
-                            horizontal: ScreenUtil().setWidth(15),
-                            vertical: ScreenUtil().setHeight(15),
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return SizedBox(
+                          height: ScreenUtil().screenHeight * 0.6,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                CircularProgressIndicator.adaptive(
+                                  strokeWidth: 3.sp,
+                                ),
+                                SizedBox(height: 10.h),
+                                const CustomText(
+                                  text:
+                                      'Waiting for the equipment articles to display...',
+                                ),
+                              ],
+                            ),
                           ),
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(10),
+                        );
+                      }
+
+                      final articles = snapshot.data ?? [];
+                      if (articles.isEmpty) {
+                        return Padding(
+                          padding: EdgeInsets.only(top: 20.h),
+                          child: const Center(
+                            child: CustomText(
+                              text: 'No equipment article to display...',
+                            ),
                           ),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Expanded(
-                                child: Column(
+                        );
+                      }
+
+                      return ListView.builder(
+                        padding: EdgeInsets.symmetric(horizontal: 20.w),
+                        shrinkWrap: true,
+                        itemCount: _filteredArticles.length,
+                        physics: const NeverScrollableScrollPhysics(),
+                        itemBuilder: (context, index) {
+                          final article = _filteredArticles[index];
+                          final preview = article.content.isNotEmpty
+                              ? article.content.first
+                              : '';
+                          return Card(
+                            elevation: 1,
+                            child: InkWell(
+                              onTap: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) =>
+                                        ArticleDetailsScreen(article: article),
+                                  ),
+                                );
+                              },
+                              child: Container(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: ScreenUtil().setWidth(15),
+                                  vertical: ScreenUtil().setHeight(15),
+                                ),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(10),
+                                ),
+                                child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
-                                      mainAxisAlignment:
-                                          MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: CustomText(
-                                            text: article.title.isEmpty
-                                                ? 'Untitled'
-                                                : article.title,
-                                            fontSize: 24.sp,
-                                            fontWeight: FontWeight.bold,
-                                            maxLines: 2,
+                                    Expanded(
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Expanded(
+                                                child: CustomText(
+                                                  text: article.title.isEmpty
+                                                      ? 'Untitled'
+                                                      : article.title,
+                                                  fontSize: 24.sp,
+                                                  fontWeight: FontWeight.bold,
+                                                  maxLines: 2,
+                                                ),
+                                              ),
+                                              _statusChip(article.isActive),
+                                            ],
                                           ),
-                                        ),
-                                        _statusChip(article.isActive),
-                                      ],
-                                    ),
-                                    SizedBox(height: 4.h),
-                                    CustomText(
-                                      text: article.name,
-                                      fontSize: 13.sp,
-                                    ),
-                                    if (preview.isNotEmpty) ...[
-                                      SizedBox(height: 6.h),
-                                      CustomText(
-                                        text: preview,
-                                        fontSize: 12.sp,
-                                        maxLines: 2,
+                                          SizedBox(height: 4.h),
+                                          CustomText(
+                                            text: article.name,
+                                            fontSize: 13.sp,
+                                          ),
+                                          if (preview.isNotEmpty) ...[
+                                            SizedBox(height: 6.h),
+                                            CustomText(
+                                              text: preview,
+                                              fontSize: 12.sp,
+                                              maxLines: 2,
+                                            ),
+                                          ],
+                                        ],
                                       ),
-                                    ],
+                                    ),
                                   ],
                                 ),
                               ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                );
-              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  ),
+                ],
+              ),
             ),
-          ],
-        ),
+          ),
+          // Loading overlay for refresh
+          if (_isRefreshing)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: Center(
+                child: Container(
+                  padding: EdgeInsets.all(20.w),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(12.r),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.1),
+                        blurRadius: 10,
+                        spreadRadius: 2,
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      CircularProgressIndicator.adaptive(strokeWidth: 3.sp),
+                      SizedBox(height: 16.h),
+                      CustomText(
+                        text: 'Refreshing articles...',
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
-
-  // @override
-  // Widget build(BuildContext context) {
-  //   return SafeArea(
-  //     child: Column(
-  //       crossAxisAlignment: CrossAxisAlignment.start,
-  //       children: [
-  //         SearchBarWidget(
-  //           hintText: 'Search for...',
-  //           textController: _searchController,
-  //           onChanged: (value) {
-  //             setState(() {
-  //               query = value;
-  //             });
-  //           },
-  //         ),
-  //         Expanded(
-  //           child: FutureBuilder<List<Article>>(
-  //             future: _futureArticles,
-  //             builder: (context, snapshot) {
-  //               if (snapshot.hasError) {
-  //                 return Center(
-  //                   child: Padding(
-  //                     padding: EdgeInsets.symmetric(horizontal: 24.w),
-  //                     child: CustomText(
-  //                       text: 'No articles to display.',
-  //                       fontSize: 14.sp,
-  //                     ),
-  //                   ),
-  //                 );
-  //               }
-
-  //               if (snapshot.connectionState == ConnectionState.waiting) {
-  //                 return Center(
-  //                   child: Column(
-  //                     mainAxisAlignment: MainAxisAlignment.center,
-  //                     children: [
-  //                       CircularProgressIndicator.adaptive(strokeWidth: 3.sp),
-  //                       SizedBox(height: 10.h),
-  //                       CustomText(
-  //                         text: 'Loading articles...',
-  //                         fontSize: 14.sp,
-  //                       ),
-  //                     ],
-  //                   ),
-  //                 );
-  //               }
-
-  //               final articles = snapshot.data ?? [];
-  //               if (articles.isEmpty) {
-  //                 return Center(
-  //                   child: Padding(
-  //                     padding: EdgeInsets.symmetric(horizontal: 24.w),
-  //                     child: CustomText(
-  //                       text: 'No articles to display.',
-  //                       fontSize: 14.sp,
-  //                     ),
-  //                   ),
-  //                 );
-  //               }
-
-  //               return ListView.separated(
-  //                 padding: EdgeInsets.symmetric(
-  //                   horizontal: 20.w,
-  //                   vertical: 10.h,
-  //                 ),
-  //                 itemCount: articles.length,
-  //                 separatorBuilder: (_, __) => SizedBox(height: 8.h),
-  //                 itemBuilder: (context, index) {
-  //                   final article = articles[index];
-  //                   return Card(
-  //                     elevation: 1,
-  //                     shape: RoundedRectangleBorder(
-  //                       borderRadius: BorderRadius.circular(12.r),
-  //                     ),
-  //                     child: InkWell(
-  //                       borderRadius: BorderRadius.circular(12.r),
-  //                       onTap: () {
-  //                         // Navigate to article details screen
-  //                         Navigator.push(
-  //                           context,
-  //                           MaterialPageRoute(
-  //                             builder: (context) =>
-  //                                 ArticleDetailsScreen(article: article),
-  //                           ),
-  //                         );
-  //                       },
-  //                       child: Padding(
-  //                         padding: EdgeInsets.symmetric(
-  //                           horizontal: 16.w,
-  //                           vertical: 14.h,
-  //                         ),
-  //                         child: Row(
-  //                           crossAxisAlignment: CrossAxisAlignment.start,
-  //                           children: [
-  //                             // If you have thumbnails, place an Image here.
-  //                             // Otherwise, just use the text area expanded.
-  //                             Placeholder(
-  //                               fallbackHeight: 100.h,
-  //                               fallbackWidth: 100.w,
-  //                             ),
-  //                             SizedBox(width: 10.w),
-  //                             Expanded(
-  //                               child: Column(
-  //                                 crossAxisAlignment: CrossAxisAlignment.start,
-  //                                 children: [
-  //                                   // Title
-  //                                   CustomText(
-  //                                     text: article.title,
-  //                                     fontSize: 20.sp,
-  //                                     fontWeight: FontWeight.w700,
-  //                                     // prevent overflow
-  //                                     maxLines: 2,
-  //                                     overflow: TextOverflow.ellipsis,
-  //                                   ),
-  //                                   SizedBox(height: 6.h),
-  //                                   // Body preview
-  //                                   CustomText(
-  //                                     text: article.body,
-  //                                     fontSize: 13.sp,
-  //                                     maxLines: 3,
-  //                                     overflow: TextOverflow.ellipsis,
-  //                                   ),
-  //                                 ],
-  //                               ),
-  //                             ),
-  //                           ],
-  //                         ),
-  //                       ),
-  //                     ),
-  //                   );
-  //                 },
-  //               );
-  //             },
-  //           ),
-  //         ),
-  //       ],
-  //     ),
-  //   );
-  // }
 }

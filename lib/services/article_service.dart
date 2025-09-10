@@ -1,21 +1,22 @@
 import '../constants.dart';
 import 'dart:convert';
 import 'package:http/http.dart';
-import 'package:flutter/services.dart';
-import '../models/article_model.dart';
 
 class ArticleService {
-  List<Article> listData = [];
+  List<dynamic> listData = [];
+  Map mapData = {};
 
-  Future<List> getAllArticles() async {
-    Response response = await get(Uri.parse('$host/posts'));
+  Future<List<dynamic>> getAllArticles() async {
+    Response response = await get(Uri.parse('$host/api/articles'));
 
     if (response.statusCode == 200) {
-      listData = jsonDecode(response.body);
-
+      final responseData = jsonDecode(response.body);
+      // Handle the wrapped response structure: {"articles": [...]}
+      listData = responseData['articles'] ?? responseData;
+      
       return listData;
     } else {
-      throw Exception('Failed to load data');
+      throw Exception('Failed to load data: ${response.statusCode} ${response.body}');
     }
   }
 
