@@ -21,6 +21,7 @@ class _DetailScreenState extends State<DetailScreen> {
   late TextEditingController _qtyAvailCtrl;
   late bool _isActive;
   bool _isSaving = false;
+  bool _isEditMode = false;
   final _svc = ItemService();
   late Item _item;
 
@@ -180,7 +181,20 @@ class _DetailScreenState extends State<DetailScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(_item.name.isEmpty ? 'Item' : _item.name)),
+      appBar: AppBar(
+        title: Text(_item.name.isEmpty ? 'Item' : _item.name),
+        actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _isEditMode = !_isEditMode;
+              });
+            },
+            icon: Icon(_isEditMode ? Icons.close : Icons.edit),
+            tooltip: _isEditMode ? 'Cancel Edit' : 'Edit Item',
+          ),
+        ],
+      ),
       body: SafeArea(
         child: SingleChildScrollView(
           padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 16.h),
@@ -193,35 +207,41 @@ class _DetailScreenState extends State<DetailScreen> {
                 SizedBox(height: 12.h),
                 TextFormField(
                   controller: _photoCtrl,
-                  decoration: const InputDecoration(
+                  readOnly: !_isEditMode,
+                  decoration: InputDecoration(
                     labelText: 'Photo URL',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _isEditMode ? null : const Icon(Icons.lock_outline),
                   ),
-                  onChanged: (_) => setState(() {}),
+                  onChanged: _isEditMode ? (_) => setState(() {}) : null,
                 ),
                 SizedBox(height: 12.h),
                 TextFormField(
                   controller: _nameCtrl,
-                  decoration: const InputDecoration(
+                  readOnly: !_isEditMode,
+                  decoration: InputDecoration(
                     labelText: 'Name',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
+                    suffixIcon: _isEditMode ? null : const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Required' : null,
+                  validator: _isEditMode ? (v) =>
+                      v?.trim().isEmpty == true ? 'Required' : null : null,
                 ),
                 SizedBox(height: 12.h),
                 TextFormField(
                   controller: _descCtrl,
+                  readOnly: !_isEditMode,
                   minLines: 3,
                   maxLines: 6,
-                  decoration: const InputDecoration(
+                  decoration: InputDecoration(
                     labelText: 'Description (one per line or comma-separated)',
-                    border: OutlineInputBorder(),
+                    border: const OutlineInputBorder(),
                     alignLabelWithHint: true,
+                    suffixIcon: _isEditMode ? null : const Icon(Icons.lock_outline),
                   ),
-                  validator: (v) => _parseDesc(v ?? '').isEmpty
+                  validator: _isEditMode ? (v) => _parseDesc(v ?? '').isEmpty
                       ? 'Add at least one line'
-                      : null,
+                      : null : null,
                 ),
                 SizedBox(height: 12.h),
                 Row(
@@ -229,59 +249,96 @@ class _DetailScreenState extends State<DetailScreen> {
                     Expanded(
                       child: TextFormField(
                         controller: _qtyTotalCtrl,
+                        readOnly: !_isEditMode,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Qty Total',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _isEditMode ? null : const Icon(Icons.lock_outline),
                         ),
-                        validator: (v) {
+                        validator: _isEditMode ? (v) {
                           final n = int.tryParse(v ?? '');
                           return n == null || n < 0 ? 'Invalid' : null;
-                        },
+                        } : null,
                       ),
                     ),
                     SizedBox(width: 10.w),
                     Expanded(
                       child: TextFormField(
                         controller: _qtyAvailCtrl,
+                        readOnly: !_isEditMode,
                         keyboardType: TextInputType.number,
-                        decoration: const InputDecoration(
+                        decoration: InputDecoration(
                           labelText: 'Qty Available',
-                          border: OutlineInputBorder(),
+                          border: const OutlineInputBorder(),
+                          suffixIcon: _isEditMode ? null : const Icon(Icons.lock_outline),
                         ),
-                        validator: (v) {
+                        validator: _isEditMode ? (v) {
                           final a = int.tryParse(v ?? '');
                           final t = int.tryParse(_qtyTotalCtrl.text);
                           if (a == null || a < 0) return 'Invalid';
                           if (t != null && a > t) return '> total';
                           return null;
-                        },
+                        } : null,
                       ),
                     ),
                   ],
                 ),
                 SizedBox(height: 8.h),
-                SwitchListTile.adaptive(
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Active'),
-                  value: _isActive,
-                  onChanged: (v) => setState(() => _isActive = v),
-                ),
-                SizedBox(height: 16.h),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSaving ? null : _save,
-                    icon: _isSaving
-                        ? const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Icon(Icons.save),
-                    label: Text(_isSaving ? 'Saving...' : 'Save Changes'),
+                if (_isEditMode) ...[
+                  SwitchListTile.adaptive(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Active'),
+                    value: _isActive,
+                    onChanged: (v) => setState(() => _isActive = v),
                   ),
-                ),
+                  SizedBox(height: 16.h),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: _isSaving ? null : _save,
+                      icon: _isSaving
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : const Icon(Icons.save),
+                      label: Text(_isSaving ? 'Saving...' : 'Save Changes'),
+                    ),
+                  ),
+                ] else ...[
+                  // Display read-only status
+                  Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 16.w),
+                    decoration: BoxDecoration(
+                      color: _isActive ? Colors.green[50] : Colors.red[50],
+                      borderRadius: BorderRadius.circular(8.r),
+                      border: Border.all(
+                        color: _isActive ? Colors.green[300]! : Colors.red[300]!,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          _isActive ? Icons.check_circle : Icons.cancel,
+                          color: _isActive ? Colors.green[600] : Colors.red[600],
+                          size: 20.sp,
+                        ),
+                        SizedBox(width: 8.w),
+                        Text(
+                          'Status: ${_isActive ? 'Active' : 'Inactive'}',
+                          style: TextStyle(
+                            fontSize: 16.sp,
+                            fontWeight: FontWeight.w500,
+                            color: _isActive ? Colors.green[700] : Colors.red[700],
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 SizedBox(height: 8.h),
                 // Only show delete button for inactive items
                 if (!_isActive) ...[
