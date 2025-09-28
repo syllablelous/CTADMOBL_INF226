@@ -18,9 +18,15 @@ class _SplashScreenState extends State<SplashScreen> {
   }
 
   Future<void> getIsLogin() async {
-    final userData = await UserService().getUserData();
-    if (userData['token'] != null && userData['token'] != '') {
-      // User is logged in
+    final userService = UserService();
+    
+    // Check both Firebase authentication and local storage
+    final userData = await userService.getUserData();
+    final isFirebaseLoggedIn = userService.isFirebaseLoggedIn;
+    final hasLocalToken = userData['token'] != null && userData['token'] != '';
+    
+    if (isFirebaseLoggedIn || hasLocalToken) {
+      // User is logged in (either via Firebase or local storage)
       Timer(
         const Duration(seconds: 4),
         () => Navigator.popAndPushNamed(context, '/home'),

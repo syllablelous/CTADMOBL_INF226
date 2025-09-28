@@ -49,3 +49,8 @@ app.*.map.json
 assets/.env
 node_modules/
 .metadata
+
+# Firebase configuration files (contain sensitive API keys)
+**/google-services.json
+**/GoogleService-Info.plist
+**/firebase_options.dart

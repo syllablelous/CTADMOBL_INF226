@@ -23,32 +23,70 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
-  Future<void> _handleLogin() async {
+  Future<void> _handleMongoDBLogin() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
       });
 
       try {
+        // MongoDB/Backend Authentication
         final response = await _userService.loginUser(
           _emailController.text,
           _passwordController.text,
         );
-
         await _userService.saveUserData(response);
 
         if (!mounted) return;
 
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Login successful!')));
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('MongoDB Login successful!')),
+        );
 
         Navigator.pushReplacementNamed(context, '/home');
       } catch (e) {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Login failed: ${e.toString()}')),
+          SnackBar(content: Text('MongoDB Login failed: ${e.toString()}')),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _handleFirebaseLogin() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Firebase Authentication
+        final userCredential = await _userService.signIn(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        await _userService.saveFirebaseUserData(userCredential.user!);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Firebase Login successful!')),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Firebase Login failed: ${e.toString()}')),
         );
       } finally {
         if (mounted) {
@@ -74,10 +112,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // Logo
-                  Image.asset(
-                    'assets/images/StreetFeedLogo.png',
-                    height: 120,
-                  ),
+                  Image.asset('assets/images/StreetFeedLogo.png', height: 120),
                   const SizedBox(height: 24),
                   const Text(
                     'Welcome Back',
@@ -137,24 +172,53 @@ class _LoginScreenState extends State<LoginScreen> {
                     },
                   ),
                   const SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: _isLoading ? null : _handleLogin,
+
+                  // MongoDB Login
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleMongoDBLogin,
+                    icon: const Icon(Icons.eco, color: Colors.white),
+                    label: const Text(
+                      'Login with MongoDB',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.blue[700],
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
                     ),
-                    child: _isLoading
-                        ? const SizedBox(
-                            height: 20,
-                            width: 20,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                        : const Text('Log In', style: TextStyle(fontSize: 16)),
                   ),
+                  const SizedBox(height: 12),
+
+                  // Firebase Login
+                  ElevatedButton.icon(
+                    onPressed: _isLoading ? null : _handleFirebaseLogin,
+                    icon: const Icon(
+                      Icons.local_fire_department,
+                      color: Colors.white,
+                    ),
+                    label: const Text(
+                      'Login with Firebase',
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.orange[600],
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+
+                  // Loading Indicator
+                  if (_isLoading)
+                    const Padding(
+                      padding: EdgeInsets.only(top: 16),
+                      child: Center(child: CircularProgressIndicator()),
+                    ),
                   const SizedBox(height: 16),
-                  
+
                   // Sign Up Link
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,

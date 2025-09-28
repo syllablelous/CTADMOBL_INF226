@@ -39,7 +39,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
     super.dispose();
   }
 
-  Future<void> _handleSignUp() async {
+  Future<void> _handleMongoDBSignUp() async {
     if (_formKey.currentState!.validate()) {
       setState(() {
         _isLoading = true;
@@ -68,7 +68,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           if (!mounted) return;
 
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Registration successful!')),
+            const SnackBar(content: Text('MongoDB Registration successful!')),
           );
 
           Navigator.pushReplacementNamed(context, '/home');
@@ -78,7 +78,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text(
-                'Registration successful! Please login to continue.',
+                'MongoDB Registration successful! Please login to continue.',
               ),
             ),
           );
@@ -89,7 +89,55 @@ class _SignUpScreenState extends State<SignUpScreen> {
         if (!mounted) return;
 
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Registration failed: ${e.toString()}')),
+          SnackBar(
+            content: Text('MongoDB Registration failed: ${e.toString()}'),
+          ),
+        );
+      } finally {
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+      }
+    }
+  }
+
+  Future<void> _handleFirebaseSignUp() async {
+    if (_formKey.currentState!.validate()) {
+      setState(() {
+        _isLoading = true;
+      });
+
+      try {
+        // Firebase Authentication - simplified registration
+        final userCredential = await _userService.createAccount(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+
+        // Update display name with username
+        await _userService.updateUsername(
+          username: _usernameController.text,
+        );
+
+        // Save Firebase user data to local storage
+        await _userService.saveFirebaseUserData(userCredential.user!);
+
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Firebase Registration successful!')),
+        );
+
+        Navigator.pushReplacementNamed(context, '/home');
+      } catch (e) {
+        if (!mounted) return;
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Firebase Registration failed: ${e.toString()}'),
+          ),
         );
       } finally {
         if (mounted) {
@@ -382,23 +430,50 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
                 const SizedBox(height: 24),
 
-                // Sign Up Button
-                ElevatedButton(
-                  onPressed: _isLoading ? null : _handleSignUp,
+                // Sign Up for MongoDB
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _handleMongoDBSignUp,
+                  icon: const Icon(Icons.eco, color: Colors.white),
+                  label: const Text(
+                    'Sign Up with MongoDB',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[700],
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        )
-                      : const Text('Sign Up', style: TextStyle(fontSize: 16)),
                 ),
+                const SizedBox(height: 12),
+
+                // Sign Up for Firebasse
+                ElevatedButton.icon(
+                  onPressed: _isLoading ? null : _handleFirebaseSignUp,
+                  icon: const Icon(
+                    Icons.local_fire_department,
+                    color: Colors.white,
+                  ),
+                  label: const Text(
+                    'Sign Up with Firebase',
+                    style: TextStyle(fontSize: 16, color: Colors.white),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange[600],
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                  ),
+                ),
+
+                // Loading Indicator
+                if (_isLoading)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 16),
+                    child: Center(child: CircularProgressIndicator()),
+                  ),
                 const SizedBox(height: 16),
 
                 // Login Link
