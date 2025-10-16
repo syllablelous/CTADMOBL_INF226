@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'article_screen.dart';
 import 'setttings_screen.dart';
+import 'chat_screen.dart';
+import 'profile_screen.dart';
 
 import '../widgets/custom_text.dart';
 
@@ -23,25 +25,35 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         elevation: 2,
         title: CustomText(
-          text: (_selectedIndex == 0) ? 'Articles' : 'Home',
+          text: _selectedIndex == 0
+              ? 'Articles'
+              : _selectedIndex == 1
+                  ? 'Chats'
+                  : 'Profile',
           fontSize: 20.sp,
           fontWeight: FontWeight.w600,
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.settings, size: 24.sp),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => const SettingsScreen()),
-              );
-            },
-          ),
+          if (_selectedIndex != 2)
+            IconButton(
+              icon: Icon(Icons.settings, size: 24.sp),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const SettingsScreen()),
+                );
+              },
+            ),
         ],
       ),
       body: PageView(
         controller: _pageController,
-        children: const <Widget>[ArticleScreen(), Placeholder(), Placeholder()],
+        children: const <Widget>[
+          ArticleScreen(),
+          ChatScreen(),
+          ProfileScreen(),
+        ],
         onPageChanged: (page) {
           setState(() {
             _selectedIndex = page;
@@ -55,8 +67,8 @@ class _HomeScreenState extends State<HomeScreen> {
         items: const [
           BottomNavigationBarItem(icon: Icon(Icons.home), label: 'Home'),
           BottomNavigationBarItem(
-            icon: Icon(Icons.notifications),
-            label: 'Notifications',
+            icon: Icon(Icons.message),
+            label: 'Messages',
           ),
           BottomNavigationBarItem(icon: Icon(Icons.person), label: 'Profile'),
         ],
@@ -66,14 +78,9 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   void _onTappedBar(int value) {
-    if (value == 2) {
-      // Navigate to profile screen
-      Navigator.pushNamed(context, '/profile');
-    } else {
-      setState(() {
-        _selectedIndex = value;
-      });
-      _pageController.jumpToPage(value);
-    }
+    setState(() {
+      _selectedIndex = value;
+    });
+    _pageController.jumpToPage(value);
   }
 }

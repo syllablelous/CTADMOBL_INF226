@@ -116,13 +116,26 @@ class _SignUpScreenState extends State<SignUpScreen> {
           password: _passwordController.text,
         );
 
-        // Update display name with username
+        // Update display name with full name
+        final fullName = '${_firstNameController.text} ${_lastNameController.text}';
         await _userService.updateUsername(
-          username: _usernameController.text,
+          username: fullName,
         );
 
-        // Save Firebase user data to local storage
+        // Save Firebase user data to local storage and Firestore
         await _userService.saveFirebaseUserData(userCredential.user!);
+        
+        // Store additional user data in Firestore
+        await _userService.storeCompleteFirebaseUserData(
+          userCredential.user!,
+          firstName: _firstNameController.text,
+          lastName: _lastNameController.text,
+          username: _usernameController.text,
+          age: _ageController.text,
+          gender: _selectedGender,
+          contactNumber: _contactNumberController.text,
+          address: _addressController.text,
+        );
 
         if (!mounted) return;
 

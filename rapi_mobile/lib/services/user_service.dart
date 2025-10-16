@@ -3,6 +3,7 @@ import 'package:http/http.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../constants.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 ValueNotifier<UserService> userService = ValueNotifier(UserService());
@@ -61,6 +62,92 @@ class UserService {
     await prefs.setString('token', user.uid); // Use Firebase UID as token
     await prefs.setString('type', 'firebase_user');
     await prefs.setString('username', user.displayName ?? ''); // Store username as displayName
+    
+    // Also store user data in Firestore for chat functionality
+    await _storeFirebaseUserInFirestore(user);
+  }
+
+  Future<void> _storeFirebaseUserInFirestore(User user) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final userData = {
+        'uid': user.uid,
+        'firstName': user.displayName?.split(' ').first ?? '',
+        'lastName': user.displayName?.split(' ').skip(1).join(' ') ?? '',
+        'email': user.email ?? '',
+        'username': user.displayName ?? '',
+        'type': 'firebase_user',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      
+      await firestore.collection('Users').doc(user.uid).set(userData);
+    } catch (e) {
+      print('Error storing Firebase user in Firestore: $e');
+    }
+  }
+
+  Future<void> storeCompleteFirebaseUserData(
+    User user, {
+    required String firstName,
+    required String lastName,
+    required String username,
+    required String age,
+    required String gender,
+    required String contactNumber,
+    required String address,
+  }) async {
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final userData = {
+        'uid': user.uid,
+        'firstName': firstName,
+        'lastName': lastName,
+        'email': user.email ?? '',
+        'username': username,
+        'age': age,
+        'gender': gender,
+        'contactNumber': contactNumber,
+        'address': address,
+        'type': 'firebase_user',
+        'isActive': true,
+        'createdAt': FieldValue.serverTimestamp(),
+      };
+      
+      await firestore.collection('Users').doc(user.uid).set(userData);
+    } catch (e) {
+      print('Error storing complete Firebase user data in Firestore: $e');
+    }
+  }
+
+  // Method to ensure Firebase user exists in Firestore (for existing users)
+  Future<void> ensureFirebaseUserInFirestore() async {
+    final user = currentUser;
+    if (user == null) return;
+
+    try {
+      final firestore = FirebaseFirestore.instance;
+      final userDoc = await firestore.collection('Users').doc(user.uid).get();
+      
+      if (!userDoc.exists) {
+        // User doesn't exist in Firestore, create a basic entry
+        final userData = {
+          'uid': user.uid,
+          'firstName': user.displayName?.split(' ').first ?? 'User',
+          'lastName': user.displayName?.split(' ').skip(1).join(' ') ?? '',
+          'email': user.email ?? '',
+          'username': user.displayName ?? user.email ?? 'Unknown',
+          'type': 'firebase_user',
+          'isActive': true,
+          'createdAt': FieldValue.serverTimestamp(),
+        };
+        
+        await firestore.collection('Users').doc(user.uid).set(userData);
+        print('Created Firestore entry for existing Firebase user: ${user.email}');
+      }
+    } catch (e) {
+      print('Error ensuring Firebase user in Firestore: $e');
+    }
   }
 
   Future<Map<String, dynamic>> getUserData() async {
@@ -148,6 +235,21 @@ class UserService {
 
   Future<void> updateUsername({required String username}) async {
     await currentUser!.updateDisplayName(username);
+    try {
+      final firestore = FirebaseFirestore.instance;
+      await firestore
+          .collection('Users')
+          .doc(currentUser!.uid)
+          .update({'username': username});
+    } catch (e) {
+      print('Error updating username in Firestore: $e');
+    }
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('username', username);
+    } catch (e) {
+      print('Error updating username in local storage: $e');
+    }
   }
 
   Future<void> deleteAccount({
@@ -160,6 +262,13 @@ class UserService {
     );
 
     await currentUser!.reauthenticateWithCredential(credential);
+    final String uid = currentUser!.uid;
+    try {
+      final firestore = FirebaseFirestore.instance;
+      await firestore.collection('Users').doc(uid).delete();
+    } catch (e) {
+      print('Error deleting Firestore user document: $e');
+    }
     await currentUser!.delete();
     await firebaseAuth.signOut();
   }

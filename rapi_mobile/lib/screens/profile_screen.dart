@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/user_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -29,6 +30,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final firebaseUser = _userService.currentUser;
         final localData = await _userService.getUserData();
 
+        String usernameFromFirestore = '';
+        if (firebaseUser != null) {
+          try {
+            final doc = await FirebaseFirestore.instance
+                .collection('Users')
+                .doc(firebaseUser.uid)
+                .get();
+            usernameFromFirestore = (doc.data()?['username'] ?? '').toString();
+          } catch (_) {}
+        }
+
         setState(() {
           _userData = {
             'firstName':
@@ -40,7 +52,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 localData['lastName'] ??
                 '',
             'email': firebaseUser?.email ?? localData['email'] ?? '',
-            'username': firebaseUser?.displayName ?? localData['username'] ?? '',
+            // Prefer Firestore username if available; fallback to displayName/local
+            'username': usernameFromFirestore.isNotEmpty
+                ? usernameFromFirestore
+                : (localData['username'] ?? firebaseUser?.displayName ?? ''),
             'type': 'firebase_user',
             'uid': firebaseUser?.uid ?? '',
             'emailVerified': firebaseUser?.emailVerified ?? false,
@@ -99,7 +114,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (result != null && result.isNotEmpty) {
       try {
         if (_loginType == 'firebase') {
-          await _userService.updateUsername(username: result);
+          await _userService.updateUsername(username: result.trim());
+          try {
+            if ((_userData['uid'] ?? '').toString().isNotEmpty) {
+              await FirebaseFirestore.instance
+                  .collection('Users')
+                  .doc(_userData['uid'])
+                  .update({'username': result.trim()});
+            }
+          } catch (_) {}
         } else {
           // For MongoDB users, update username directly
           final response = await _userService.updateMongoDBUsername(
@@ -317,11 +340,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-      ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
